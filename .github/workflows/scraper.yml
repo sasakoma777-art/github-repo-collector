@@ -2,8 +2,7 @@ name: Daily GitHub Repo Collector
 
 on:
   schedule:
-    # 毎日 日本時間 午前3:00（UTC 18:00）に自動実行
-    - cron: '0 18 * * *'
+    - cron: '0 */6 * * *'  # 0時、6時、12時、18時（UTC）に自動実行
   workflow_dispatch: # GitHubの画面から手動実行も可能
 
 jobs:
