@@ -16,7 +16,7 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 SPREADSHEET_KEY = os.environ.get("SPREADSHEET_KEY") # スプレッドシートのID
 GCP_CREDS_JSON = os.environ.get("GCP_CREDS_JSON")   # サービスアカウントJSON文字列
 
-# 検索対象キーワードリスト（定期実行ごとに各キーワードから上位を取得）
+# 検索対象キーワードリスト
 KEYWORDS = [
     "accounting stars:>200",
     "crm stars:>300",
@@ -39,24 +39,44 @@ def init_google_sheet():
     sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
     return sheet
 
-def search_github(query, per_page=10):
-    """GitHub Search APIでリポジトリを検索"""
-    url = f"https://api.github.com/search/repositories?q={query}&sort=stars&order=desc&per_page={per_page}"
-    headers = {"Accept": "application/vnd.github.v3+json"}
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"token {GITHUB_TOKEN}"
+def search_github(query, per_page=5):
+    """GitHub Search APIでリポジトリを検索（URLエンコード対応・エラーログ付き）"""
+    url = "https://api.github.com/search/repositories"
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "GitHub-Repo-Collector"
+    }
     
-    res = requests.get(url, headers=headers)
+    # トークンがある場合はヘッダーに追加
+    if GITHUB_TOKEN and GITHUB_TOKEN.strip():
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN.strip()}"
+    
+    params = {
+        "q": query,
+        "sort": "stars",
+        "order": "desc",
+        "per_page": per_page
+    }
+    
+    res = requests.get(url, headers=headers, params=params)
+    
     if res.status_code == 200:
-        return res.json().get("items", [])
-    return []
+        items = res.json().get("items", [])
+        print(f"  -> {len(items)} 件のリポジトリを取得しました")
+        return items
+    else:
+        print(f"  [GitHub API Error] Status: {res.status_code}, Response: {res.text}")
+        return []
 
 def get_readme(repo_full_name):
     """READMEテキストを取得（先頭1500文字）"""
     url = f"https://api.github.com/repos/{repo_full_name}/readme"
-    headers = {"Accept": "application/vnd.github.v3+json"}
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"token {GITHUB_TOKEN}"
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "GitHub-Repo-Collector"
+    }
+    if GITHUB_TOKEN and GITHUB_TOKEN.strip():
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN.strip()}"
     
     res = requests.get(url, headers=headers)
     if res.status_code == 200:
@@ -74,7 +94,7 @@ def analyze_with_gemini(client, repo, readme):
 - 名前: {repo['full_name']}
 - 概要: {repo.get('description') or 'なし'}
 - README抜粋:
-{readme}
+${readme}
 
 【出力要件】
 1. level: 「入門・副業」「中級」「上級」から選択
@@ -104,7 +124,7 @@ def analyze_with_gemini(client, repo, readme):
         )
         return json.loads(response.text)
     except Exception as e:
-        print(f"Gemini API Error: {e}")
+        print(f"  [Gemini API Error]: {e}")
         return None
 
 def main():
@@ -113,12 +133,13 @@ def main():
     
     # 既存リポジトリURLの取得（重複登録防止用）
     existing_urls = set(sheet.col_values(1))
+    print(f"既存の登録件数: {len(existing_urls)} 件")
     
     ai_client = genai.Client(api_key=GEMINI_API_KEY)
     
     for kw in KEYWORDS:
         print(f"--- 検索中: {kw} ---")
-        repos = search_github(kw, per_page=5) # 1キーワードあたり上位5件取得
+        repos = search_github(kw, per_page=5)
         
         for repo in repos:
             repo_url = repo["html_url"]
@@ -146,7 +167,7 @@ def main():
                 existing_urls.add(repo_url)
                 print(f"追加完了: {repo['full_name']}")
             
-            # レート制限対策待機（無料枠RPM対策）
+            # レート制限対策待機
             time.sleep(13)
 
 if __name__ == "__main__":
