@@ -1,0 +1,32 @@
+name: Daily GitHub Repo Collector
+
+on:
+  schedule:
+    # 毎日 日本時間 午前3:00（UTC 18:00）に自動実行
+    - cron: '0 18 * * *'
+  workflow_dispatch: # GitHubの画面から手動実行も可能
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Python環境のセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: ライブラリのインストール
+        run: |
+          pip install -r requirements.txt
+
+      - name: 収集スクリプトの実行
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT_TOKEN }}
+          SPREADSHEET_KEY: ${{ secrets.SPREADSHEET_KEY }}
+          GCP_CREDS_JSON: ${{ secrets.GCP_CREDS_JSON }}
+        run: |
+          python main.py
