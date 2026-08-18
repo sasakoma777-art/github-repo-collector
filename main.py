@@ -17,16 +17,24 @@ SPREADSHEET_KEY = os.environ.get("SPREADSHEET_KEY")
 GCP_CREDS_JSON = os.environ.get("GCP_CREDS_JSON")
 
 KEYWORDS = [
-    "accounting stars:>200 license:mit",
-    "crm stars:>300 license:mit",
-    "time-tracking stars:>100 license:mit",
-    "booking stars:>200 license:mit",
-    "form-builder stars:>200 license:mit",
-    "e-signature stars:>100 license:mit",
-    "helpdesk stars:>200 license:mit",
-    "kanban stars:>300 license:mit",
-    "workflow automation stars:>500 license:mit",
-    "portfolio-template stars:>100 license:mit"
+    # 既存のバックオフィス系
+    "accounting stars:>100 license:mit",
+    "crm stars:>200 license:mit",
+    "time-tracking stars:>50 license:mit",
+    "booking stars:>100 license:mit",
+    "form-builder stars:>100 license:mit",
+    "e-signature stars:>50 license:mit",
+    "helpdesk stars:>100 license:mit",
+    "kanban stars:>200 license:mit",
+    "workflow automation stars:>300 license:mit",
+    
+    # 💡 新規追加：Web制作・マーケティング・AIツール系
+    "landing-page template stars:>100 license:mit",
+    "admin dashboard stars:>500 license:mit",
+    "seo tool stars:>100 license:mit",
+    "email marketing stars:>100 license:mit",
+    "social media automation stars:>100 license:mit",
+    "markdown editor stars:>200 license:mit"
 ]
 
 def init_google_sheet():
@@ -141,7 +149,7 @@ def main():
     
     for kw in KEYWORDS:
         print(f"--- 検索中: {kw} ---")
-        repos = search_github(kw, per_page=5)
+        repos = search_github(kw, per_page=15)
         
         for repo in repos:
             repo_url = repo["html_url"]
