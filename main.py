@@ -17,16 +17,16 @@ SPREADSHEET_KEY = os.environ.get("SPREADSHEET_KEY")
 GCP_CREDS_JSON = os.environ.get("GCP_CREDS_JSON")
 
 KEYWORDS = [
-    "accounting stars:>200",
-    "crm stars:>300",
-    "time-tracking stars:>100",
-    "booking stars:>200",
-    "form-builder stars:>200",
-    "e-signature stars:>100",
-    "helpdesk stars:>200",
-    "kanban stars:>300",
-    "workflow automation stars:>500",
-    "portfolio-template stars:>100"
+    "accounting stars:>200 license:mit",
+    "crm stars:>300 license:mit",
+    "time-tracking stars:>100 license:mit",
+    "booking stars:>200 license:mit",
+    "form-builder stars:>200 license:mit",
+    "e-signature stars:>100 license:mit",
+    "helpdesk stars:>200 license:mit",
+    "kanban stars:>300 license:mit",
+    "workflow automation stars:>500 license:mit",
+    "portfolio-template stars:>100 license:mit"
 ]
 
 def init_google_sheet():
