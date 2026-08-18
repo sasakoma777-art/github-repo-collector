@@ -13,10 +13,9 @@ from google.genai import types
 # --------------------------------------------------
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-SPREADSHEET_KEY = os.environ.get("SPREADSHEET_KEY") # スプレッドシートのID
-GCP_CREDS_JSON = os.environ.get("GCP_CREDS_JSON")   # サービスアカウントJSON文字列
+SPREADSHEET_KEY = os.environ.get("SPREADSHEET_KEY")
+GCP_CREDS_JSON = os.environ.get("GCP_CREDS_JSON")
 
-# 検索対象キーワードリスト
 KEYWORDS = [
     "accounting stars:>200",
     "crm stars:>300",
@@ -40,14 +39,12 @@ def init_google_sheet():
     return sheet
 
 def search_github(query, per_page=5):
-    """GitHub Search APIでリポジトリを検索（URLエンコード対応・エラーログ付き）"""
+    """GitHub Search APIでリポジトリを検索"""
     url = "https://api.github.com/search/repositories"
     headers = {
         "Accept": "application/vnd.github.v3+json",
         "User-Agent": "GitHub-Repo-Collector"
     }
-    
-    # トークンがある場合はヘッダーに追加
     if GITHUB_TOKEN and GITHUB_TOKEN.strip():
         headers["Authorization"] = f"Bearer {GITHUB_TOKEN.strip()}"
     
@@ -59,7 +56,6 @@ def search_github(query, per_page=5):
     }
     
     res = requests.get(url, headers=headers, params=params)
-    
     if res.status_code == 200:
         items = res.json().get("items", [])
         print(f"  -> {len(items)} 件のリポジトリを取得しました")
@@ -85,8 +81,8 @@ def get_readme(repo_full_name):
         return decoded[:1500]
     return ""
 
-def analyze_with_gemini(client, repo, readme):
-    """Gemini APIで構造化データを抽出"""
+def analyze_with_gemini(client, repo, readme, max_retries=3):
+    """Gemini API（gemini-3.6-flash）で構造化データを抽出"""
     prompt = f"""
 以下のGitHubリポジトリ情報を読み取り、指定形式で分類・要約してください。
 
@@ -94,7 +90,7 @@ def analyze_with_gemini(client, repo, readme):
 - 名前: {repo['full_name']}
 - 概要: {repo.get('description') or 'なし'}
 - README抜粋:
-${readme}
+{readme}
 
 【出力要件】
 1. level: 「入門・副業」「中級」「上級」から選択
@@ -113,19 +109,25 @@ ${readme}
         "required": ["level", "genre", "difficulty", "summary"]
     }
 
-    try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=schema,
-            ),
-        )
-        return json.loads(response.text)
-    except Exception as e:
-        print(f"  [Gemini API Error]: {e}")
-        return None
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = client.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=schema,
+                ),
+            )
+            return json.loads(response.text)
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                print(f"  [Rate limit 429] 15秒待機して再試行します... ({attempt}/{max_retries})")
+                time.sleep(15)
+            else:
+                print(f"  [Gemini API Error]: {e}")
+                return None
+    return None
 
 def main():
     print("=== GitHub定期収集スクリプト起動 ===")
@@ -167,7 +169,7 @@ def main():
                 existing_urls.add(repo_url)
                 print(f"追加完了: {repo['full_name']}")
             
-            # レート制限対策待機
+            # API無料枠の制限を超えないよう13秒待機
             time.sleep(13)
 
 if __name__ == "__main__":
