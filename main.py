@@ -17,7 +17,6 @@ SPREADSHEET_KEY = os.environ.get("SPREADSHEET_KEY")
 GCP_CREDS_JSON = os.environ.get("GCP_CREDS_JSON")
 
 KEYWORDS = [
-    # 既存のバックオフィス系
     "accounting stars:>100 license:mit",
     "crm stars:>200 license:mit",
     "time-tracking stars:>50 license:mit",
@@ -27,8 +26,6 @@ KEYWORDS = [
     "helpdesk stars:>100 license:mit",
     "kanban stars:>200 license:mit",
     "workflow automation stars:>300 license:mit",
-    
-    # 💡 新規追加：Web制作・マーケティング・AIツール系
     "landing-page template stars:>100 license:mit",
     "admin dashboard stars:>500 license:mit",
     "seo tool stars:>100 license:mit",
@@ -46,7 +43,18 @@ def init_google_sheet():
     sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
     return sheet
 
-def search_github(query, per_page=5):
+def safe_append_row(sheet, row, max_retries=3):
+    """スプレッドシート書き込み時の503/一時エラー自動リトライ"""
+    for attempt in range(1, max_retries + 1):
+        try:
+            sheet.append_row(row)
+            return True
+        except Exception as e:
+            print(f"  [Sheets API エラー] 再試行します ({attempt}/{max_retries}): {e}")
+            time.sleep(5 * attempt)
+    return False
+
+def search_github(query, per_page=15):
     """GitHub Search APIでリポジトリを検索"""
     url = "https://api.github.com/search/repositories"
     headers = {
@@ -90,7 +98,7 @@ def get_readme(repo_full_name):
     return ""
 
 def analyze_with_gemini(client, repo, readme, max_retries=3):
-    """Gemini API（gemini-3.6-flash）で構造化データを抽出"""
+    """Gemini API（gemini-3.6-flash）で構造化データを抽出（429/503自動再試行）"""
     prompt = f"""
 以下のGitHubリポジトリ情報を読み取り、指定形式で分類・要約してください。
 
@@ -129,9 +137,12 @@ def analyze_with_gemini(client, repo, readme, max_retries=3):
             )
             return json.loads(response.text)
         except Exception as e:
-            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-                print(f"  [Rate limit 429] 15秒待機して再試行します... ({attempt}/{max_retries})")
-                time.sleep(15)
+            err_msg = str(e)
+            # 429（制限）または 503（高負荷・一時不通）の場合は待機して再試行
+            if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "503" in err_msg or "UNAVAILABLE" in err_msg:
+                wait_sec = 20 * attempt  # 20秒、40秒、60秒と徐々に待機時間を拡大
+                print(f"  [API一時制限/混雑] {wait_sec}秒待機して再試行します... ({attempt}/{max_retries})")
+                time.sleep(wait_sec)
             else:
                 print(f"  [Gemini API Error]: {e}")
                 return None
@@ -173,12 +184,14 @@ def main():
                     ai_data.get("summary", repo.get("description") or ""),
                     license_name
                 ]
-                sheet.append_row(row)
-                existing_urls.add(repo_url)
-                print(f"追加完了: {repo['full_name']}")
+                
+                # スプレッドシートへ安全に追加
+                if safe_append_row(sheet, row):
+                    existing_urls.add(repo_url)
+                    print(f"追加完了: {repo['full_name']}")
             
-            # API無料枠の制限を超えないよう13秒待機
-            time.sleep(13)
+            # API無料枠の安全マージンとして15秒待機
+            time.sleep(15)
 
 if __name__ == "__main__":
     main()
