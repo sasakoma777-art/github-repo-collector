@@ -34,17 +34,36 @@ KEYWORDS = [
     "markdown editor stars:>200 license:mit"
 ]
 
-def init_google_sheet():
-    """Googleスプレッドシートの認証と取得"""
+def init_google_sheet(max_retries=5):
+    """Googleスプレッドシートの認証と取得（接続リトライ付き）"""
     creds_dict = json.loads(GCP_CREDS_JSON)
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
-    return sheet
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            sheet = client.open_by_key(SPREADSHEET_KEY).sheet1
+            return sheet
+        except Exception as e:
+            wait_sec = 10 * attempt
+            print(f"  [スプレッドシート接続待機] {wait_sec}秒待機して再試行します... ({attempt}/{max_retries}): {e}")
+            time.sleep(wait_sec)
+            
+    raise Exception("Googleスプレッドシートへの接続に失敗しました。")
+
+def get_existing_urls(sheet, max_retries=3):
+    """既存リポジトリURL一覧の取得（リトライ付き）"""
+    for attempt in range(1, max_retries + 1):
+        try:
+            return set(sheet.col_values(1))
+        except Exception as e:
+            print(f"  [URL一覧取得エラー] 再試行します ({attempt}/{max_retries}): {e}")
+            time.sleep(5 * attempt)
+    return set()
 
 def safe_append_row(sheet, row, max_retries=3):
-    """スプレッドシート書き込み時の503/一時エラー自動リトライ"""
+    """スプレッドシート書き込み時の自動リトライ"""
     for attempt in range(1, max_retries + 1):
         try:
             sheet.append_row(row)
@@ -98,7 +117,7 @@ def get_readme(repo_full_name):
     return ""
 
 def analyze_with_gemini(client, repo, readme, max_retries=3):
-    """Gemini API（gemini-3.6-flash）で構造化データを抽出（429/503自動再試行）"""
+    """Gemini APIで構造化データを抽出（429/503自動再試行）"""
     prompt = f"""
 以下のGitHubリポジトリ情報を読み取り、指定形式で分類・要約してください。
 
@@ -138,9 +157,8 @@ def analyze_with_gemini(client, repo, readme, max_retries=3):
             return json.loads(response.text)
         except Exception as e:
             err_msg = str(e)
-            # 429（制限）または 503（高負荷・一時不通）の場合は待機して再試行
             if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "503" in err_msg or "UNAVAILABLE" in err_msg:
-                wait_sec = 20 * attempt  # 20秒、40秒、60秒と徐々に待機時間を拡大
+                wait_sec = 20 * attempt
                 print(f"  [API一時制限/混雑] {wait_sec}秒待機して再試行します... ({attempt}/{max_retries})")
                 time.sleep(wait_sec)
             else:
@@ -152,8 +170,8 @@ def main():
     print("=== GitHub定期収集スクリプト起動 ===")
     sheet = init_google_sheet()
     
-    # 既存リポジトリURLの取得（重複登録防止用）
-    existing_urls = set(sheet.col_values(1))
+    # 既存リポジトリURLの取得（リトライ付き）
+    existing_urls = get_existing_urls(sheet)
     print(f"既存の登録件数: {len(existing_urls)} 件")
     
     ai_client = genai.Client(api_key=GEMINI_API_KEY)
@@ -185,13 +203,12 @@ def main():
                     license_name
                 ]
                 
-                # スプレッドシートへ安全に追加
                 if safe_append_row(sheet, row):
                     existing_urls.add(repo_url)
                     print(f"追加完了: {repo['full_name']}")
             
-            # API無料枠の安全マージンとして15秒待機
             time.sleep(15)
 
 if __name__ == "__main__":
+    main()
     main()
