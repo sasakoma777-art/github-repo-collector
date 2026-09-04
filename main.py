@@ -2,6 +2,7 @@ import os
 import time
 import json
 import base64
+from datetime import datetime, timezone, timedelta
 import requests
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -15,6 +16,9 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 SPREADSHEET_KEY = os.environ.get("SPREADSHEET_KEY")
 GCP_CREDS_JSON = os.environ.get("GCP_CREDS_JSON")
+
+# 日本時間（JST: UTC+9）の定義
+JST = timezone(timedelta(hours=9))
 
 KEYWORDS = [
     "accounting stars:>100 license:mit",
@@ -192,6 +196,9 @@ def main():
             
             if ai_data:
                 license_name = repo["license"]["spdx_id"] if repo.get("license") else "なし"
+                # 現在の日本時間（例: 2026-09-04 10:52:41）
+                acquired_at = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
+                
                 row = [
                     repo_url,
                     ai_data.get("level", "入門・副業"),
@@ -200,7 +207,8 @@ def main():
                     repo["full_name"],
                     repo["stargazers_count"],
                     ai_data.get("summary", repo.get("description") or ""),
-                    license_name
+                    license_name,
+                    acquired_at  # ★ I列に日本時間の日時を追加
                 ]
                 
                 if safe_append_row(sheet, row):
@@ -210,5 +218,4 @@ def main():
             time.sleep(15)
 
 if __name__ == "__main__":
-    main()
     main()
