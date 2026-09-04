@@ -21,21 +21,57 @@ GCP_CREDS_JSON = os.environ.get("GCP_CREDS_JSON")
 JST = timezone(timedelta(hours=9))
 
 KEYWORDS = [
+    # --------------------------------------------------
+    # 1. お金・バックオフィス・契約（請求・経費・店舗）
+    # --------------------------------------------------
     "accounting stars:>100 license:mit",
-    "crm stars:>200 license:mit",
-    "time-tracking stars:>50 license:mit",
-    "booking stars:>100 license:mit",
-    "form-builder stars:>100 license:mit",
-    "e-signature stars:>50 license:mit",
-    "helpdesk stars:>100 license:mit",
-    "kanban stars:>200 license:mit",
-    "workflow automation stars:>300 license:mit",
-    "landing-page template stars:>100 license:mit",
-    "admin dashboard stars:>500 license:mit",
-    "seo tool stars:>100 license:mit",
-    "email marketing stars:>100 license:mit",
-    "social media automation stars:>100 license:mit",
-    "markdown editor stars:>200 license:mit"
+    "invoice generator stars:>100 license:mit",      # 請求書・見積書作成
+    "expense tracker stars:>100 license:mit",       # 経費・支出管理
+    "crm stars:>200 license:mit",                   # 顧客管理
+    "pos system stars:>100 license:mit",            # 小規模決済・レジ・POS
+    "e-signature stars:>50 license:mit",            # 電子署名・オンライン契約
+
+    # --------------------------------------------------
+    # 2. 予約・時間・問い合わせ・タスク管理
+    # --------------------------------------------------
+    "booking stars:>100 license:mit",               # 予約システム・日程調整
+    "time-tracking stars:>50 license:mit",          # 工数・作業時間記録
+    "helpdesk stars:>100 license:mit",              # 問い合わせ管理・チケット
+    "customer support chat stars:>150 license:mit", # Web接客・チャットボット
+    "kanban stars:>200 license:mit",                # カンバン・プロジェクト管理
+    "knowledge base wiki stars:>200 license:mit",   # 社内Wiki・マニュアル共有
+
+    # --------------------------------------------------
+    # 3. Web制作・LP・UIテンプレート（受託・自社サイト向け）
+    # --------------------------------------------------
+    "landing-page template stars:>100 license:mit", # LPテンプレート
+    "portfolio-template stars:>100 license:mit",    # ポートフォリオサイト
+    "admin dashboard stars:>500 license:mit",       # 管理画面ダッシュボード
+    "website builder stars:>200 license:mit",       # ノーコードサイトビルダー
+    "headless cms stars:>300 license:mit",          # ヘッドレスCMS・コンテンツ管理
+    "form-builder stars:>100 license:mit",          # 問い合わせフォーム生成
+    "astro template stars:>100 license:mit",        # 高速Webサイト用モダンテンプレート
+
+    # --------------------------------------------------
+    # 4. マーケティング・SEO・SNS・データ収集
+    # --------------------------------------------------
+    "seo tool stars:>100 license:mit",              # SEO分析・メタタグ検証
+    "keyword research stars:>50 license:mit",       # キーワード調査・競合分析
+    "web analytics privacy stars:>200 license:mit", # プライバシー配慮型アクセス解析
+    "email marketing stars:>100 license:mit",       # メルマガ配信・自動ステップメール
+    "social media automation stars:>100 license:mit",# SNS自動投稿・管理
+    "link shortener stars:>150 license:mit",        # 短縮URL・クリック計測
+    "crawler scraper stars:>200 license:mit",       # Webスクレイピング・データ収集
+
+    # --------------------------------------------------
+    # 5. 自動化・AI・コンテンツ作成・メディア
+    # --------------------------------------------------
+    "workflow automation stars:>300 license:mit",   # 業務自動化（n8n系など）
+    "agent workflow stars:>200 license:mit",        # AIエージェント・自律型タスク処理
+    "markdown editor stars:>200 license:mit",       # マークダウン・記事執筆エディタ
+    "screen recorder stars:>150 license:mit",       # 画面録画・動画マニュアル作成
+    "video editor stars:>200 license:mit",          # 軽量・Web動画編集ツール
+    "subtitle generator whisper stars:>100 license:mit" # 自動字幕・テロップ生成
 ]
 
 def init_google_sheet(max_retries=5):
